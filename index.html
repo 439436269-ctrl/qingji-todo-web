@@ -6,6 +6,11 @@
 <meta name="theme-color" content="#F6F7F9">
 <title>轻记 · TODO</title>
 <link rel="icon" href="data:,">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="轻记">
 <style>
 :root{
   --bg:#F6F7F9; --card:#FFFFFF; --ink:#1C1E21; --ink2:#8A9099; --line:#ECEEF1;
@@ -685,6 +690,10 @@ render();
 refreshSyncChip();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&SYNC.token)scheduleSync(1000)});
 setInterval(()=>{if(SYNC.token)doSync()},300000);
+// HTTP(S) 环境注册离线缓存（file:// 的 Android 壳内不注册）
+if((location.protocol==='https:'||location.protocol==='http:')&&'serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').catch(()=>{});
+}
 </script>
 </body>
 </html>
