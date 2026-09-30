@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>轻记 · 授权回跳</title>
+</head>
+<body style="font-family:-apple-system,'PingFang SC',sans-serif;text-align:center;padding-top:38vh;color:#555;background:#F6F7F9;margin:0">
+<script>
+(function () {
+  var p = new URLSearchParams(location.search);
+  if (p.get('code')) {
+    location.replace('qingji-todo://oauth?code=' + encodeURIComponent(p.get('code'))
+      + (p.get('state') ? '&state=' + encodeURIComponent(p.get('state')) : ''));
+  } else {
+    document.body.textContent = '授权失败：' + (p.get('error_description') || p.get('error') || '未知错误') + '（可返回 App 重试）';
+  }
+})();
+</script>
+</body>
+</html>
