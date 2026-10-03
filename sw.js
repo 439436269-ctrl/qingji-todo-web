@@ -1,6 +1,7 @@
 // 轻记 TODO 离线缓存：network-first，失败回退本地缓存
-const CACHE = 'qingji-v1';
-const ASSETS = ['./', 'index.html', 'sw.js', 'apple-touch-icon.png'];
+// web 站结构：index.html=说明落地页，app.html=应用本体
+const CACHE = 'qingji-v2';
+const ASSETS = ['./', 'app.html', 'sw.js', 'apple-touch-icon.png', 'privacy.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -29,7 +30,7 @@ self.addEventListener('fetch', e => {
       return r;
     }).catch(() =>
       caches.match(e.request, { ignoreSearch: true })
-        .then(m => m || caches.match('index.html'))
+        .then(m => m || caches.match('app.html'))
     )
   );
 });
