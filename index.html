@@ -53,6 +53,7 @@ h1{margin:2px 0 14px;font-size:26px;font-weight:700;letter-spacing:.2px}
 .tag-filter-chip{display:inline-flex;align-items:center;gap:7px;background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px}
 .tag-filter-chip button{border:none;background:rgba(61,123,250,.15);color:var(--accent);width:18px;height:18px;border-radius:50%;font-size:13px;line-height:1;cursor:pointer;padding:0}
 main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
+.appver{text-align:center;font-size:11px;color:#C3C8D0;padding:2px 0 14px;letter-spacing:.5px;flex-shrink:0}
 .group-header{display:flex;align-items:center;gap:8px;margin:18px 2px 8px}
 .g-name{font-size:13px;font-weight:600;color:#6B7280}
 .g-count{font-size:12px;color:#A9B0BA}
@@ -186,6 +187,7 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
     <div class="tagbar" id="tagbar" hidden></div>
   </header>
   <main id="list"></main>
+  <footer class="appver" id="appver"></footer>
   <button id="fab" aria-label="添加任务"><svg viewBox="0 0 24 24" width="24" height="24"><path d="M12 5v14M5 12h14" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/></svg></button>
 
   <div id="overlay" hidden>
@@ -1295,11 +1297,13 @@ function fallbackCopy(txt,done){
   document.body.removeChild(ta);
 }
 
+const APP_VER='1.1.0'; // 版本号单一来源（发版时同步改 Manifest versionName）
 state=load();
 loadAuth();
 loadFeishu();
 render();
 refreshSyncChip();
+$('#appver').textContent='v'+APP_VER;
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&fsOn())scheduleSync(1000)});
 setInterval(()=>{if(fsOn())doSync()},300000);
 // HTTP(S) 环境注册离线缓存（file:// 的 Android 壳内不注册）
