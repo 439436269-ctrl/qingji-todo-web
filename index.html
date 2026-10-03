@@ -4,7 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>轻记 · TODO — 同步到自己飞书多维表格的待办</title>
-<meta name="description" content="轻记 TODO：本地优先的待办工具，可同步到你自己的飞书多维表格，截止前多档提醒直达锁屏，网页免安装即用，Android 版无广告。">
+<meta name="description" content="轻记 TODO：本地优先的待办工具，可同步到你自己的飞书多维表格，截止前多档提醒直达锁屏，网页免安装即用，Android 版无广告，iOS 版可添加主屏或用 Xcode 安装。">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="apple-touch-icon.png">
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -37,13 +38,16 @@ footer{text-align:center;font-size:11px;color:#C3C8D0;margin-top:34px;letter-spa
   <div class="hero">
     <img src="apple-touch-icon.png" alt="轻记">
     <h1>轻记 · TODO</h1>
-    <div class="ver">v1.1.0 · 网页版 + Android</div>
+    <div class="ver">v1.1.0 · 网页版 + Android + iOS</div>
     <div class="slogan">数据本地优先，云端同步到<b>你自己的飞书多维表格</b>——不放任何人的服务器。</div>
     <div class="cta">
       <a class="primary" href="app.html">打开网页版</a>
       <a class="ghost" href="qingji-todo.apk" download>下载 Android 版</a>
     </div>
-    <div class="note">网页版免安装、可加到主屏离线用 · APK 约 49KB 无广告</div>
+    <div class="cta" style="margin-top:10px">
+      <a class="ghost" href="#ios">📱 iPhone 版 · 安装指引</a>
+    </div>
+    <div class="note">网页版免安装、可加到主屏离线用 · APK 约 49KB 无广告 · iPhone 见下方安装指引</div>
   </div>
 
   <div class="feats">
@@ -63,7 +67,12 @@ footer{text-align:center;font-size:11px;color:#C3C8D0;margin-top:34px;letter-spa
   <div class="priv" style="margin-top:10px">
     <b>网页版</b>：点「打开网页版」直接记，浏览器可加到主屏。<br><br>
     <b>Android 版</b>：下载 APK 安装后，在「飞书同步」面板填入你自己的
-    多维表格链接 + App ID + App Secret（飞书开放平台个人版免费创建应用），即可获得自动同步与锁屏提醒。
+    多维表格链接 + App ID + App Secret（飞书开放平台个人版免费创建应用），即可获得自动同步与锁屏提醒。<br><br>
+    <b>iPhone 版</b>（<span id="ios"></span>两条路径任选）：<br>
+    ① <b>免电脑 · 30 秒</b>：用 Safari 打开 <a href="app.html">网页版</a> → 点底部「分享」→
+    「添加到主屏幕」，即可全屏离线使用（提醒需保持页面打开）；<br>
+    ② <b>原生版 · 完整提醒</b>：在 Mac 上用 Xcode 安装，含锁屏通知、系统分享、飞书授权登录——
+    跟随 <a href="https://github.com/439436269-ctrl/qingji-todo/blob/main/ios/README.md" target="_blank" rel="noopener">iOS 安装指南</a>（约 10 分钟，免费 Apple ID 即可）。
   </div>
 
   <footer>轻记 · TODO v1.1.0</footer>
