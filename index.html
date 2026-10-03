@@ -59,8 +59,12 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
 .g-more{margin-left:auto;width:28px;height:28px;border:none;background:transparent;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer}
 .g-more:active{background:#EEF0F4}
 .done-label{font-size:12px;color:#A9B0BA;margin:14px 4px 8px}
-.task{position:relative;display:flex;gap:12px;background:var(--card);border-radius:14px;padding:13px 14px 13px 16px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,24,40,.04);cursor:pointer;transition:transform .12s}
+.task{position:relative;z-index:1;display:flex;gap:12px;background:var(--card);border-radius:14px;padding:13px 14px 13px 16px;margin-bottom:8px;box-shadow:0 1px 2px rgba(16,24,40,.04);cursor:pointer;transition:transform .12s}
 .task:active{transform:scale(.985)}
+.task-wrap{position:relative;overflow:hidden;border-radius:14px;margin-bottom:8px}
+.task-wrap .task{margin-bottom:0}
+.task-del{position:absolute;top:0;right:0;bottom:0;width:84px;border:none;background:var(--danger);color:#fff;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit}
+.task.swiping{transition:none!important}
 .task.anim{animation:tin .28s both}
 @keyframes tin{from{opacity:0;transform:translateY(8px)}}
 .pri-bar{position:absolute;left:0;top:12px;bottom:12px;width:4px;border-radius:0 3px 3px 0}
@@ -126,6 +130,13 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
 #fs-overlay.show{background:rgba(15,20,30,.45)}
 #fs-overlay .auth-card{width:min(340px,100%)}
 .fs-status{font-size:13px;color:#98A0A9;text-align:center;margin:0 0 12px;font-weight:500}
+.fs-close{flex:0 0 auto;width:28px;height:28px;border:none;background:#EEF0F4;border-radius:50%;color:#6B7280;font-size:15px;line-height:1;cursor:pointer;font-family:inherit}
+.fs-close:active{background:#E2E5EA}
+.fs-btn{position:relative}
+.fs-btn[disabled]{opacity:.5}
+.fs-btn.loading{opacity:.75}
+.fs-btn.loading::before{content:'';display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;border:2px solid #C9CFF3;border-top-color:#3370FF;border-radius:50%;animation:fs-spin .7s linear infinite}
+@keyframes fs-spin{to{transform:rotate(360deg)}}
 #fs-off{width:100%;padding:12px;border:none;border-radius:12px;background:#F2F4F7;color:#6B7280;font-size:15px;font-weight:600;cursor:pointer;margin-top:10px;font-family:inherit}
 #fs-actions{margin-top:14px;padding-top:14px;border-top:1px dashed #E3E6EB}
 #fs-toggle{width:100%;margin-top:14px;padding:9px 0 0;border:none;border-top:1px dashed #E3E6EB;background:transparent;color:var(--accent);font-size:13px;cursor:pointer;font-family:inherit}
@@ -136,6 +147,9 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
 .fs-btn.alt{background:var(--accent-soft);color:var(--accent)}
 .fs-rules{font-size:12px;line-height:1.7;color:#8A9099;margin:12px 2px 0}
 .fs-rules b{color:#6B7280}
+.fs-guide-steps{margin:0;padding-left:18px;font-size:13px;line-height:1.75;color:#4B5563}
+.fs-guide-steps b{color:#1F2329}
+#fs-guide[hidden]{display:none!important}
 #mini{position:fixed;inset:0;background:rgba(15,20,30,0);display:flex;align-items:center;justify-content:center;z-index:70;opacity:0;transition:opacity .2s;padding:20px}
 #mini.show{opacity:1;background:rgba(15,20,30,.45)}
 .mini-card{width:min(320px,100%);background:#fff;border-radius:18px;padding:20px;transform:scale(.96);transition:transform .2s}
@@ -193,6 +207,9 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
       </div>
       <div class="f-label">优先级</div>
       <div class="chip-row" id="f-prios"></div>
+      <div class="f-label">提醒（截止前提醒，可多选）</div>
+      <div class="chip-row" id="f-reminds"></div>
+      <div class="f-label" id="f-remind-hint" style="font-weight:400;font-size:12px;color:#A9B0BA;margin-top:-4px" hidden>设置截止时间后可选提醒</div>
       <div class="f-label">标签</div>
       <div class="chip-row" id="f-tags-view"></div>
       <input id="f-tag-input" class="input" type="text" placeholder="输入标签后回车添加" autocomplete="off" style="margin-top:8px">
@@ -205,7 +222,10 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
 
   <div id="fs-overlay" hidden>
     <div class="auth-card">
-      <p class="fs-status" id="fs-status">飞书同步：未启用</p>
+      <div style="display:flex;align-items:center;gap:8px">
+        <p class="fs-status" id="fs-status" style="flex:1;margin:0;text-align:left;line-height:1.5">飞书同步：未启用</p>
+        <button type="button" id="fs-close" class="fs-close" aria-label="关闭">×</button>
+      </div>
       <div id="fs-actions" hidden>
         <div class="fs-btn-row">
           <button type="button" class="fs-btn" id="fs-up">⬆ 上传到飞书</button>
@@ -217,11 +237,32 @@ main{flex:1;padding:12px 16px calc(120px + env(safe-area-inset-bottom))}
       <div id="fs-setup">
         <input id="fs-base" class="input" type="text" placeholder="多维表格链接（my.feishu.cn/base/…）" autocomplete="off">
         <div id="fs-native">
-          <div class="f-label" style="margin-top:16px">飞书应用凭据（只存本机）</div>
+          <div class="f-label" style="margin-top:16px">飞书应用凭据（创建应用后获得，只存本机）</div>
           <input id="fs-appid" class="input" type="text" placeholder="App ID（cli_ 开头）" autocomplete="off">
-          <input id="fs-appsecret" class="input" type="password" placeholder="App Secret" autocomplete="off" style="margin-top:10px">
-          <button type="button" class="auth-submit" id="fs-creds" style="background:var(--accent-soft);color:var(--accent);margin-top:10px">保存凭据</button>
-          <button type="button" class="auth-submit" id="fs-auth" style="background:#3370FF;color:#fff;margin-top:10px">飞书授权登录（免 Secret）</button>
+          <input id="fs-appsecret" class="input" type="password" placeholder="App Secret（必填）" autocomplete="off" style="margin-top:10px">
+          <!-- 暂缓：OAuth 授权登录（tenant 直连模式已覆盖同步能力，代码保留便于未来切回）
+          <button type="button" class="auth-submit" id="fs-auth" style="background:#3370FF;color:#fff;margin-top:10px">飞书授权登录</button>
+          <button type="button" id="fs-guide-toggle" class="fs-link" style="margin-top:12px">📋 授权配置指引（后台配一次即可）▾</button>
+          <div id="fs-guide" hidden style="margin-top:8px;padding:10px 12px;background:#F6F7F9;border-radius:10px">
+            <p class="fs-rules" style="margin:0 0 6px">授权前需在飞书开放平台完成<b>一次性配置</b>：</p>
+            <ol class="fs-guide-steps">
+              <li><b>安全设置</b>：重定向 URL 添加下方地址</li>
+              <li><b>权限管理</b>：申请下方列出的权限点位</li>
+              <li><b>创建版本并发布</b>（配置发布后才生效）</li>
+              <li>回到本页重新点「飞书授权登录」</li>
+            </ol>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:8px">
+              <code id="fs-redirect-url" style="flex:1 1 auto;min-width:0;white-space:nowrap;overflow-x:auto;font-size:12px;background:#fff;border:1px solid #E4E6EB;border-radius:6px;padding:7px 9px"></code>
+              <button type="button" id="fs-copy-url" class="auth-submit" style="width:auto;flex:0 0 auto;margin:0;padding:7px 16px;background:var(--accent-soft);color:var(--accent);font-size:13px">复制</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+              <code id="fs-scope-list" style="flex:1 1 auto;min-width:0;white-space:nowrap;overflow-x:auto;font-size:12px;background:#fff;border:1px solid #E4E6EB;border-radius:6px;padding:7px 9px"></code>
+              <button type="button" id="fs-copy-scope" class="auth-submit" style="width:auto;flex:0 0 auto;margin:0;padding:7px 16px;background:var(--accent-soft);color:var(--accent);font-size:13px">复制</button>
+            </div>
+            <p class="fs-rules" style="margin:8px 0 0;color:#D4380D"><b>20029</b>＝重定向 URL 没配好；<b>20043</b>＝权限点位没申请或没发布版本。</p>
+            <p class="fs-rules" style="margin:6px 0 0">只填 App ID 即可授权，但登录态 2 小时过期；<b>填入 App Secret 后自动续期、长期免登录</b>。</p>
+          </div>
+          -->
         </div>
         <div class="auth-err" id="fs-err"></div>
         <button type="button" class="auth-submit" id="fs-save">保存并启用</button>
@@ -262,7 +303,7 @@ function ds(d){return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate(
 function today(){return ds(new Date())}
 function addDays(n){const d=new Date();d.setDate(d.getDate()+n);return ds(d)}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function newTask(o){return Object.assign({id:uid(),title:'',done:false,groupId:null,due:null,priority:null,tags:[],createdAt:Date.now(),completedAt:null},o||{})}
+function newTask(o){return Object.assign({id:uid(),title:'',done:false,groupId:null,due:null,priority:null,tags:[],remindAt:null,reminds:[],createdAt:Date.now(),completedAt:null},o||{})}
 function groupsSorted(){return state.groups.slice().sort((a,b)=>a.order-b.order)}
 function taskById(id){return state.tasks.find(t=>t.id===id)}
 function groupOf(t){return state.groups.find(g=>g.id===t.groupId)}
@@ -299,14 +340,14 @@ function sortUndone(arr){
     return a.createdAt-b.createdAt;
   });
 }
-function buildSections(undone,doneExtra){
+function buildSections(undone,doneExtra,showEmpty){
   const secs=[];
   const placed=new Set();
   for(const g of groupsSorted()){
     const items=undone.filter(t=>t.groupId===g.id);
     const dn=doneExtra.filter(t=>t.groupId===g.id);
     items.concat(dn).forEach(t=>placed.add(t.id));
-    if(items.length||dn.length)secs.push({group:g,items,done:dn});
+    if(showEmpty||items.length||dn.length)secs.push({group:g,items,done:dn});
   }
   const orph=undone.filter(t=>!placed.has(t.id));
   const orphDone=doneExtra.filter(t=>!placed.has(t.id));
@@ -325,7 +366,7 @@ function visibleFor(tb){
   let doneExtra=[];
   if(tb==='all')doneExtra=state.tasks.filter(t=>t.done&&byTag(t));
   if(tb==='today')doneExtra=state.tasks.filter(t=>t.done&&t.completedAt&&ds(new Date(t.completedAt))===td&&byTag(t));
-  return {sections:buildSections(undone,doneExtra)};
+  return {sections:buildSections(undone,doneExtra,tb==='all')};
 }
 function taskHtml(t){
   const bar=t.priority?'<span class="pri-bar" style="background:'+PRIORITY[t.priority].color+'"></span>':'';
@@ -334,9 +375,10 @@ function taskHtml(t){
   const tagsHtml=t.tags.map(x=>'<button type="button" class="tag-chip" data-tag="'+esc(x)+'">'+esc(x)+'</button>').join('');
   const gid=(tab==='done'&&groupOf(t))?'<span class="badge">'+esc(groupOf(t).name)+'</span>':'';
   const meta=(gid||dueHtml||tagsHtml)?('<div class="t-meta">'+gid+dueHtml+tagsHtml+'</div>'):'';
-  return '<div class="task '+(t.done?'done ':'')+(firstRender?'anim':'')+'" data-id="'+t.id+'">'+bar+
+  return '<div class="task-wrap"><div class="task '+(t.done?'done ':'')+(firstRender?'anim':'')+'" data-id="'+t.id+'">'+bar+
     '<button type="button" class="check" aria-label="标记完成"><svg viewBox="0 0 14 14"><path d="M2.5 7.5 L5.8 10.5 L11.5 3.5"/></svg></button>'+
-    '<div class="t-body"><div class="t-title">'+esc(t.title)+'</div>'+meta+'</div></div>';
+    '<div class="t-body"><div class="t-title">'+esc(t.title)+'</div>'+meta+'</div></div>'+
+    '<button type="button" class="task-del" data-del="'+t.id+'">删除</button></div>';
 }
 function emptyHtml(){
   const msg=tagFilter?('没有带「'+esc(tagFilter)+'」标签的任务'):
@@ -376,13 +418,25 @@ function toast(msg){
 function openSheet(id){
   editId=id||null;
   const t=editId?taskById(editId):null;
-  sel={groupId:t?t.groupId:((groupsSorted()[0]||{}).id||null),priority:t?t.priority:null,tags:t?t.tags.slice():[]};
+  sel={groupId:t?t.groupId:((groupsSorted()[0]||{}).id||null),priority:t?t.priority:null,tags:t?t.tags.slice():[],
+    reminds:t?(t.reminds?t.reminds.slice():(t.remindAt&&t.due?remindMigrate(t):[])):[]};
   $('#sheetTitle').textContent=t?'编辑任务':'新任务';
   $('#f-title').value=t?t.title:'';
-  $('#f-date').value=(t&&t.due)?t.due.date:'';
-  $('#f-time').value=(t&&t.due&&t.due.time)?t.due.time:'';
+  if(t&&t.due){
+    $('#f-date').value=t.due.date||'';
+    $('#f-time').value=t.due.time||'';
+  }else if(!t){
+    // 新建任务截止默认：今天未到 18:00 → 今天 18:00；已过 → 当前时间 +1 小时（跨天自动顺延）
+    const now=new Date(),d18=new Date(now);d18.setHours(18,0,0,0);
+    const d=now<d18?d18:new Date(now.getTime()+3600000);
+    $('#f-date').value=ds(d);
+    $('#f-time').value=pad(d.getHours())+':'+pad(d.getMinutes());
+  }else{
+    $('#f-date').value='';
+    $('#f-time').value='';
+  }
   $('#btn-del').style.display=t?'':'none';
-  renderSheetChips();renderTagChips();
+  renderSheetChips();renderTagChips();renderRemindChips();
   const ov=$('#overlay');ov.hidden=false;
   requestAnimationFrame(()=>{ov.classList.add('show');$('#sheet').classList.add('open')});
   if(!t)setTimeout(()=>$('#f-title').focus(),320);
@@ -409,13 +463,19 @@ function saveSheet(){
   if(!title){toast('先写点内容吧');$('#f-title').focus();return}
   const date=$('#f-date').value||null,time=$('#f-time').value||null;
   const due=date?{date,time}:null;
+  const reminds=date?sel.reminds.slice():[];
   if(editId){
     const t=taskById(editId);
-    Object.assign(t,{title,due,groupId:sel.groupId,priority:sel.priority,tags:sel.tags.slice()});
-    touch(t);save();closeSheet();render();markDirty('task',t.id);
+    // 旧档位先撤销（绝对时间提醒 + 已变更的偏移档），再按新模型重排
+    try{
+      if(t.remindAt)NativeBridge.cancelRemind(String(t.id));
+      (t.reminds||[]).forEach(o=>NativeBridge.cancelRemind(String(t.id)+'#'+o));
+    }catch(e){}
+    Object.assign(t,{title,due,groupId:sel.groupId,priority:sel.priority,tags:sel.tags.slice(),reminds,remindAt:null});
+    touch(t);save();syncRemind(t);closeSheet();render();markDirty('task',t.id);
   }else{
-    const nt=newTask({title,due,groupId:sel.groupId,priority:sel.priority,tags:sel.tags.slice()});
-    touch(nt);state.tasks.push(nt);save();closeSheet();render();markDirty('task',nt.id);
+    const nt=newTask({title,due,groupId:sel.groupId,priority:sel.priority,tags:sel.tags.slice(),reminds,remindAt:null});
+    touch(nt);state.tasks.push(nt);save();syncRemind(nt);closeSheet();render();markDirty('task',nt.id);
   }
 }
 
@@ -449,6 +509,21 @@ function closeMini(val){
   miniHideT=setTimeout(()=>{m.hidden=true},200);
   if(miniResolve){miniResolve(val);miniResolve=null}
 }
+async function deleteGroup(gid){
+  const g=state.groups.find(x=>x.id===gid);
+  if(!g)return;
+  if(state.groups.length<=1){toast('至少保留一个分组');return}
+  const target=groupsSorted().find(x=>x.id!==g.id);
+  if(await miniConfirm('删除分组「'+g.name+'」？其中的任务将移动到「'+target.name+'」')){
+    const moved=state.tasks.filter(t=>t.groupId===g.id);
+    moved.forEach(t=>{t.groupId=target.id;touch(t)});
+    if(sel.groupId===g.id)sel.groupId=target.id;
+    state.groups=state.groups.filter(x=>x.id!==g.id);
+    save();render();toast('分组已删除');
+    markDirty('group',g.id);
+    moved.forEach(t=>markDirty('task',t.id));
+  }
+}
 async function groupMenu(gid){
   const g=state.groups.find(x=>x.id===gid);
   const k=await miniMenu(g.name,[{key:'rename',label:'重命名分组'},{key:'delete',label:'删除分组',danger:true}]);
@@ -456,17 +531,7 @@ async function groupMenu(gid){
     const name=await miniPrompt('重命名分组',g.name);
     if(name&&name.trim()){g.name=name.trim();touch(g);save();render();markDirty('group',g.id)}
   }else if(k==='delete'){
-    if(state.groups.length<=1){toast('至少保留一个分组');return}
-    const target=groupsSorted().find(x=>x.id!==g.id);
-    if(await miniConfirm('删除分组「'+g.name+'」？其中的任务将移动到「'+target.name+'」')){
-      const moved=state.tasks.filter(t=>t.groupId===g.id);
-      moved.forEach(t=>{t.groupId=target.id;touch(t)});
-      if(sel.groupId===g.id)sel.groupId=target.id;
-      state.groups=state.groups.filter(x=>x.id!==g.id);
-      save();render();toast('分组已删除');
-      markDirty('group',g.id);
-      moved.forEach(t=>markDirty('task',t.id));
-    }
+    await deleteGroup(gid);
   }
 }
 /* ---- 云同步（登录 / outbox / 推拉） ---- */
@@ -521,13 +586,24 @@ function applyChanges(changes){
     const d=ch.data;
     if(!d||typeof d!=='object')continue;
     const local=findEntity(ch.entityType,d.id);
+    if(local&&ch.entityType==='task'){
+      // 云端无提醒字段：LWW 合并时保留本地提醒（remindAt 旧模型 + reminds 多档模型）
+      if(d.remindAt===undefined&&local.remindAt!=null)d.remindAt=local.remindAt;
+      if(d.reminds===undefined&&local.reminds&&local.reminds.length)d.reminds=local.reminds;
+    }
     if(local){
+      // outbox 有待推改动 = 本地意图权威：拉取期间禁止下行覆盖
+      // （否则手机时钟慢于飞书服务器时，「点完成」会被云端旧值翻回未完成，并把 false 推上云锁死）
+      if(SYNC.outbox.some(c=>c.entityType===ch.entityType&&c.id===d.id))continue;
       if((d.updatedAt||0)>(local.updatedAt||0)){
         removeEntity(ch.entityType,d.id);
-        if(!d.deleted)(ch.entityType==='task'?state.tasks:state.groups).push(Object.assign({},d));
+        // outbox 里挂着本端墓碑（刚删除）时，不复活云端旧记录，等墓碑推送后由下轮拉取收敛
+        if(!d.deleted&&!SYNC.outbox.some(c=>c.entityType===ch.entityType&&c.id===d.id)){
+          (ch.entityType==='task'?state.tasks:state.groups).push(Object.assign({},d));
+        }
         changed=true;
       }
-    }else if(!d.deleted){
+    }else if(!d.deleted&&!SYNC.outbox.some(c=>c.entityType===ch.entityType&&c.id===d.id)){
       (ch.entityType==='task'?state.tasks:state.groups).push(Object.assign({},d));
       changed=true;
     }
@@ -660,12 +736,30 @@ function loadFeishu(){try{const r=localStorage.getItem(FS_KEY);if(r)FS=Object.as
 function saveFeishu(){try{localStorage.setItem(FS_KEY,JSON.stringify(FS))}catch(e){}}
 const fsOn=()=>!!(FS.on&&FS.base&&FS.tasks&&FS.groups);
 function fsRelay(){return FS.relay||API_BASE||'http://127.0.0.1:8787'}
+// 异步桥回调：Java 后台线程执行网络，完成回调 —— renderer 不再被同步 HTTP 冻结（修复上传/下载整页卡死）
+window.__feishuCbMap={};
+window.__feishuCb=function(id,json){
+  const f=window.__feishuCbMap[id];delete window.__feishuCbMap[id];
+  if(!f)return;
+  try{f(JSON.parse(json))}catch(e){f(null)}
+};
 async function fsCall(args){
-  // 优先：App 原生直连（Java 内置引擎，凭据仅存手机本地）
-  if(typeof NativeBridge!=='undefined'&&NativeBridge&&typeof NativeBridge.feishu==='function'){
-    let d=null;try{d=JSON.parse(await NativeBridge.feishu(JSON.stringify({args})))}catch(e){}
+  // 优先：App 异步直连（不阻塞页面）
+  if(typeof NativeBridge!=='undefined'&&NativeBridge&&typeof NativeBridge.feishuAsync==='function'){
+    const d=await new Promise(resolve=>{
+      const id='c'+Date.now()+'_'+Math.random().toString(36).slice(2,7);
+      window.__feishuCbMap[id]=resolve;
+      try{NativeBridge.feishuAsync(JSON.stringify({args:args,cb:id}))}
+      catch(e){delete window.__feishuCbMap[id];resolve(null)}
+    });
     if(d&&d.ok)return d.data;
     if(d&&d.code==='NO_CREDS'){/* 未配置凭据 → 回落本机中继 */}
+    else{const e=new Error((d&&d.error)||'原生同步失败');e.status=500;throw e}
+  }else if(typeof NativeBridge!=='undefined'&&NativeBridge&&typeof NativeBridge.feishu==='function'){
+    // 兜底：旧版本同步桥
+    let d=null;try{d=JSON.parse(NativeBridge.feishu(JSON.stringify({args})))}catch(e){}
+    if(d&&d.ok)return d.data;
+    if(d&&d.code==='NO_CREDS'){}
     else{const e=new Error((d&&d.error)||'原生同步失败');e.status=500;throw e}
   }
   const res=await fetch(fsRelay()+'/v1/feishu/call',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({args})});
@@ -676,14 +770,18 @@ async function fsCall(args){
 function rowToObj(row,fields){const o={};for(let i=0;i<fields.length;i++)o[fields[i]]=row[i];return o}
 const PRIO={'高':'high','中':'mid','低':'low'},PRIO_R={high:'高',mid:'中',low:'低'};
 function msToDate(ms){return ds(new Date(ms))}
+function msToDT(ms){if(!ms)return'';const d=new Date(ms);return ds(d)+'T'+pad(d.getHours())+':'+pad(d.getMinutes())}
 function dateToMs(s){const p=s.split('-');return new Date(+p[0],+p[1]-1,+p[2],12,0,0).getTime()}
 function fsTaskFrom(o){
   const ms=Number(o['截止日期'])||null;
+  // 飞书单选字段读回是字符串（写入时 Java 解包也产字符串）；兼容数组形态（历史/中继方言）
+  const st=Array.isArray(o['状态'])?o['状态'][0]:o['状态'];
+  const pr=Array.isArray(o['优先级'])?o['优先级'][0]:o['优先级'];
   return{id:o['任务ID'],groupId:o['分组ID']||null,title:o['标题']||'',
     due:ms?{date:msToDate(ms),time:o['截止时间']||null}:null,
-    priority:Array.isArray(o['优先级'])&&o['优先级'].length?PRIO[o['优先级'][0]]:null,
-    tags:Array.isArray(o['标签'])?o['标签'].slice():[],
-    done:Array.isArray(o['状态'])&&o['状态'][0]==='已完成',
+    priority:pr?PRIO[pr]:null,
+    tags:Array.isArray(o['标签'])?o['标签'].slice():(o['标签']?[o['标签']]:[]),
+    done:st==='已完成',
     createdAt:Number(o['创建时间'])||Date.now(),
     completedAt:Number(o['完成时间'])||null,
     updatedAt:Number(o['更新时间'])||0,deleted:!!o['已删除']};
@@ -759,7 +857,7 @@ async function fsSync(){
       const pull2=await fsPullAll();
       if(applyChanges(pull2.changes))dirty=true;
     }
-    if(dirty){save();render()}
+    if(dirty){save();state.tasks.forEach(syncRemind);render()}
     FS.lastSync=Date.now();saveFeishu();
     refreshSyncChip();
   }catch(e){
@@ -767,7 +865,11 @@ async function fsSync(){
     setChip('error','同步失败');
     if(wasOk)toast('同步失败：'+(e&&e.message||'未知错误'));
     console.warn('feishu sync failed:',e&&e.message);
-  }finally{SYNC.inFlight=false}
+    // 有积压时 15 秒后自动重试（网络抖动/断网恢复场景），直至推平
+    if(SYNC.outbox.length)scheduleSync(15000);
+  }finally{
+    SYNC.inFlight=false;
+  }
 }
 
 /* ---- 事件 ---- */
@@ -779,13 +881,73 @@ $('#tabs').addEventListener('click',e=>{
 $('#tagbar').addEventListener('click',e=>{
   if(e.target.id==='clearTag'){tagFilter=null;render()}
 });
+function deleteTask(id,msg){
+  const t=taskById(id);
+  try{NativeBridge.cancelRemind(String(id));(t&&t.reminds||[]).forEach(o=>NativeBridge.cancelRemind(String(id)+'#'+o))}catch(e){}
+  openTask=null;
+  state.tasks=state.tasks.filter(x=>x.id!==id);
+  markDirty('task',id);
+  save();render();toast(msg||'已删除');
+}
+let swipe=null,openTask=null,suppressClick=false;
+const OPEN_X=-84; // 与 .task-del 宽度一致
+function openTaskLive(){return !!(openTask&&openTask.isConnected)}
+function closeOpenTask(){
+  if(openTask&&openTask.isConnected){openTask.classList.remove('swiping');openTask.style.transform=''}
+  openTask=null;
+}
+function snapOpenTask(el){
+  if(openTask&&openTask!==el)closeOpenTask();
+  openTask=el;el.classList.remove('swiping');el.style.transform='translateX('+OPEN_X+'px)';
+}
+$('#list').addEventListener('touchstart',e=>{
+  suppressClick=false;
+  const wrap=e.target.closest?e.target.closest('.task-wrap'):null;
+  // 触点在展开卡片之外 → 先收起（并吞掉随后的轻点，点别处只收起不进编辑）
+  if(openTaskLive()&&(!wrap||openTask.parentElement!==wrap)){closeOpenTask();suppressClick=true}
+  const t=e.target.closest?e.target.closest('.task'):null;if(!t)return;
+  const c=e.touches[0];
+  swipe={el:t,x0:c.clientX,y0:c.clientY,base:(openTask===t?OPEN_X:0),dx:0,lock:null};
+},{passive:true});
+$('#list').addEventListener('touchmove',e=>{
+  if(!swipe||!swipe.el)return;
+  const c=e.touches[0];
+  const dx=c.clientX-swipe.x0,dy=c.clientY-swipe.y0;
+  if(!swipe.lock){
+    if(Math.abs(dx)>10&&Math.abs(dx)>Math.abs(dy)+4)swipe.lock='h';
+    else if(Math.abs(dy)>10)swipe.lock='v';
+    if(!swipe.lock)return;
+  }
+  if(swipe.lock!=='h')return;
+  e.preventDefault();
+  swipe.dx=Math.max(OPEN_X,Math.min(0,swipe.base+dx));
+  swipe.el.classList.add('swiping');
+  swipe.el.style.transform='translateX('+swipe.dx+'px)';
+},{passive:false});
+function swipeEnd(){
+  if(!swipe||!swipe.el)return;
+  const el=swipe.el,lock=swipe.lock,dx=swipe.dx;
+  swipe=null;
+  if(lock!=='h')return; // 竖滑/轻点：未横向拖动，保持原状
+  suppressClick=true;
+  el.classList.remove('swiping');
+  if(dx<=OPEN_X/2){snapOpenTask(el)} // 过半 → 停在展开位，露出删除按钮
+  else{el.style.transform='';if(openTask===el)openTask=null}
+}
+$('#list').addEventListener('touchend',swipeEnd);
+$('#list').addEventListener('touchcancel',swipeEnd);
 $('#list').addEventListener('click',e=>{
+  const del=e.target.closest('.task-del');
+  if(del){closeOpenTask();deleteTask(del.dataset.del,'已删除');return}
+  if(suppressClick){suppressClick=false;return}
+  if(openTaskLive()){closeOpenTask();return} // 展开态下轻点卡片 → 只收起，不进编辑
   const more=e.target.closest('.g-more');
   if(more){groupMenu(more.dataset.gid);return}
   const chk=e.target.closest('.check');
   if(chk){
     const t=taskById(chk.closest('.task').dataset.id);
     t.done=!t.done;t.completedAt=t.done?Date.now():null;
+    if(t.done){try{if(t.remindAt)NativeBridge.cancelRemind(String(t.id));(t.reminds||[]).forEach(o=>NativeBridge.cancelRemind(String(t.id)+'#'+o))}catch(e){}}
     touch(t);save();render();markDirty('task',t.id);return;
   }
   const tc=e.target.closest('.tag-chip');
@@ -828,14 +990,25 @@ document.querySelectorAll('.quick').forEach(b=>b.addEventListener('click',()=>{
   const k=b.dataset.quick;
   $('#f-date').value=k==='clear'?'':(k==='today'?today():addDays(1));
   if(k==='clear')$('#f-time').value='';
+  else if(!$('#f-time').value)$('#f-time').value='18:00'; // 今天/明天快捷：缺时间补默认18:00
+  renderRemindChips(); // JS 设值不触发 change，手动刷新提醒档位可用态
 }));
+$('#f-reminds').addEventListener('click',function(e){
+  const c=e.target.closest('.chip');
+  if(!c||c.disabled)return;
+  const off=+c.dataset.off;
+  const i=sel.reminds.indexOf(off);
+  if(i<0)sel.reminds.push(off);else sel.reminds.splice(i,1);
+  sel.reminds.sort(function(a,b){return b-a});
+  renderRemindChips();
+});
+$('#f-date').addEventListener('change',function(){renderRemindChips()});
+$('#f-time').addEventListener('change',function(){renderRemindChips()});
 $('#sheet').addEventListener('submit',e=>{e.preventDefault();saveSheet()});
 $('#btn-del').addEventListener('click',async()=>{
   const t=taskById(editId);if(!t)return;
   if(await miniConfirm('删除任务「'+t.title+'」？')){
-    state.tasks=state.tasks.filter(x=>x.id!==editId);
-    save();closeSheet();render();toast('已删除');
-    markDirty('task',editId);
+    closeSheet();deleteTask(editId,'已删除');
   }
 });
 $('#mini-opts').addEventListener('click',e=>{
@@ -848,11 +1021,7 @@ $('#mini').addEventListener('click',e=>{if(e.target.id==='mini')closeMini(null)}
 $('#mini-input').addEventListener('keydown',e=>{
   if(e.key==='Enter'){e.preventDefault();closeMini($('#mini-input').value)}
 });
-$('#syncChip').addEventListener('click',()=>{
-  if(!fsOn()){openFs();return}
-  if(SYNC.outbox.length){doSync();return}
-  miniConfirm('飞书同步已启用。要停用吗？（数据保留在本地与飞书）').then(yes=>{if(yes)offFs()});
-});
+$('#syncChip').addEventListener('click',()=>openFs());
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
     if(!$('#mini').hidden)closeMini(null);
@@ -863,12 +1032,10 @@ document.addEventListener('keydown',e=>{
 $('#menuChip').addEventListener('click',async()=>{
   const k=await miniMenu('数据管理',[
     {key:'export',label:'导出备份（JSON）'},
-    {key:'import',label:'导入备份…'},
-    {key:'feishu',label:'飞书同步设置…'}
+    {key:'import',label:'导入备份…'}
   ]);
   if(k==='export')exportData();
   else if(k==='import')$('#fileImport').click();
-  else if(k==='feishu')openFs();
 });
 $('#fileImport').addEventListener('change',e=>{
   const f=e.target.files&&e.target.files[0];
@@ -888,9 +1055,11 @@ async function openFs(){
       try{const st=JSON.parse(NativeBridge.oauthStatus());if(st.mode==='user')mode+=' · 已授权';}catch(e){}
     }catch(e){mode='App直连'}
     $('#fs-appid').value=window.__savedAppId||'';
-    $('#fs-auth').hidden=false;
+    const fa=document.getElementById('fs-auth');
+    if(fa)fa.hidden=false;
   }else{
-    $('#fs-auth').hidden=true;
+    const fa=document.getElementById('fs-auth');
+    if(fa)fa.hidden=true;
     mode='PC中继 · 检查中…';
     try{
       const r=await fetch(fsRelay()+'/v1/feishu/creds');
@@ -909,6 +1078,46 @@ async function openFs(){
   const ov=$('#fs-overlay');ov.hidden=false;
   requestAnimationFrame(()=>ov.classList.add('show'));
 }
+// 提醒调度（经原生桥；网页端无桥时静默跳过）——截止前多档模型
+const REMIND_OPTS=[[1440,'1天前'],[120,'2小时前'],[60,'1小时前'],[30,'30分钟前'],[15,'15分钟前'],[5,'5分钟前']];
+function dueMomentMs(due){
+  if(!due||!due.date)return 0;
+  if(due.time){const p=due.time.split(':');const a=due.date.split('-');return new Date(+a[0],+a[1]-1,+a[2],+p[0],+p[1]).getTime()}
+  return dateToMs(due.date);
+}
+function remindLabel(off){return off%1440===0?(off/1440)+'天':off%60===0?(off/60)+'小时':off+'分钟'}
+function remindMigrate(t){
+  const base=dueMomentMs(t.due);
+  if(!base||!t.remindAt)return[];
+  const off=Math.round((base-t.remindAt)/60000);
+  return off>0?[off]:[];
+}
+function renderRemindChips(){
+  const hasDue=$('#f-date').value;
+  const hint=$('#f-remind-hint');if(hint)hint.hidden=!!hasDue;
+  $('#f-reminds').innerHTML=REMIND_OPTS.map(function(o){
+    const v=o[0],l=o[1];
+    const on=sel.reminds.indexOf(v)>=0;
+    return '<button type="button" class="chip '+(on?'sel':'')+'" data-off="'+v+'"'+(hasDue?'':' disabled style="opacity:.45"')+'>'+l+'</button>';
+  }).join('');
+}
+function syncRemind(t){
+  try{
+    if(t.reminds&&t.reminds.length){
+      const base=dueMomentMs(t.due);
+      t.reminds.forEach(function(off){
+        const rid=String(t.id)+'#'+off;
+        const at=base-off*60000;
+        if(base&&at>Date.now()&&!t.done)NativeBridge.scheduleRemind(rid,String(at),'截止前'+remindLabel(off)+'：'+(t.title||'未命名'));
+        else NativeBridge.cancelRemind(rid);
+      });
+    }else if(t.remindAt&&t.remindAt>Date.now()&&!t.done){
+      NativeBridge.scheduleRemind(String(t.id),String(t.remindAt),t.title||'');
+    }else{
+      NativeBridge.cancelRemind(String(t.id));
+    }
+  }catch(e){}
+}
 function setToggleLabel(){
   $('#fs-toggle').textContent=$('#fs-setup').hidden?'⚙ 连接设置 ▾':'⚙ 连接设置 ▴';
 }
@@ -918,6 +1127,8 @@ function closeFs(){
 }
 async function saveFs(){
   const err=$('#fs-err');err.textContent='';
+  const aid=$('#fs-appid').value.trim();
+  if(aid&&aid.startsWith('cli_')&&typeof NativeBridge!=='undefined'&&NativeBridge.feishuCreds){NativeBridge.feishuCreds(aid,'');window.__savedAppId=aid}
   const url=$('#fs-base').value.trim();
   let token='';
   const m=url.match(/\/(?:base|app)\/([A-Za-z0-9]+)/);
@@ -949,10 +1160,11 @@ function offFs(){
 // 手动上传：以手机为准——先合并云端（doSync 内置拉取），再把本地全量登记推送
 async function fsUploadAll(){
   if(!fsOn()){toast('请先启用飞书同步');return}
+  if(SYNC.inFlight){toast('同步进行中，请稍候');return}
   toast('开始上传…');
-  if(SYNC.inFlight)return;
-  const b=$('#fs-up'),label=b.textContent;
-  b.disabled=true;b.textContent='上传中…';
+  const b=$('#fs-up'),label=b.textContent,other=$('#fs-down');
+  b.disabled=true;b.classList.add('loading');b.textContent='上传中…';
+  if(other)other.disabled=true; // 对方仅置灰，不转圈
   try{
     state.groups.forEach(g=>markDirty('group',g.id));
     state.tasks.forEach(t=>markDirty('task',t.id));
@@ -962,21 +1174,23 @@ async function fsUploadAll(){
   }catch(e){
     toast('上传失败：'+(e&&e.message||'未知错误'));
   }finally{
-    b.disabled=false;b.textContent=label;
+    b.disabled=false;b.classList.remove('loading');b.textContent=label;
+    if(other)other.disabled=false;
   }
 }
 // 手动下载：只拉取合并，不推送
 async function fsDownload(){
   if(!fsOn()){toast('请先启用飞书同步');return}
+  if(SYNC.inFlight){toast('同步进行中，请稍候');return}
   toast('开始下载…');
-  if(SYNC.inFlight)return;
-  const b=$('#fs-down'),label=b.textContent;
-  b.disabled=true;b.textContent='下载中…';
+  const b=$('#fs-down'),label=b.textContent,other=$('#fs-up');
+  b.disabled=true;b.classList.add('loading');b.textContent='下载中…';
+  if(other)other.disabled=true; // 对方仅置灰，不转圈
   setChip('syncing','同步中');
   try{
     const pull=await fsPullAll();
     const dirty=applyChanges(pull.changes);
-    if(dirty){save();render()}
+    if(dirty){save();state.tasks.forEach(syncRemind);render()}
     FS.lastSync=Date.now();saveFeishu();
     refreshSyncChip();
     toast(dirty?'已从飞书下载合并':'飞书已是最新');
@@ -984,10 +1198,12 @@ async function fsDownload(){
     setChip('error','同步失败');
     toast('下载失败：'+(e&&e.message||'未知错误'));
   }finally{
-    b.disabled=false;b.textContent=label;
+    b.disabled=false;b.classList.remove('loading');b.textContent=label;
+    if(other)other.disabled=false;
   }
 }
 $('#fs-overlay').addEventListener('click',e=>{if(e.target.id==='fs-overlay')closeFs()});
+$('#fs-close').addEventListener('click',closeFs);
 $('#fs-save').addEventListener('click',saveFs);
 $('#fs-off').addEventListener('click',offFs);
 $('#fs-toggle').addEventListener('click',()=>{
@@ -1001,50 +1217,83 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#fs-up')){fsUploadAll();return;}
   if(e.target.closest('#fs-down')){fsDownload();return;}
 });
-$('#fs-creds').addEventListener('click',async()=>{
-  const id=$('#fs-appid').value.trim(),sec=$('#fs-appsecret').value.trim();
-  if(!id||!id.startsWith('cli_')||!sec){$('#fs-err').textContent='App ID 需为 cli_ 开头，且 Secret 不能为空';return}
-  const btn=$('#fs-creds'),label=btn.textContent;
-  btn.disabled=true;btn.textContent='保存中…';
-  try{
-    const native=typeof NativeBridge!=='undefined'&&NativeBridge&&typeof NativeBridge.feishuCreds==='function';
-    let saved=false;
-    if(native){
-      saved=NativeBridge.feishuCreds(id,sec)==='ok';
-    }else{
-      const r=await fetch(fsRelay()+'/v1/feishu/creds',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({app_id:id,app_secret:sec})});
-      saved=!!r.ok;
-    }
-    if(saved){$('#fs-appsecret').value='';toast('凭据已保存在本机');openFs();}
-    else{$('#fs-err').textContent='保存失败，请检查凭据'}
-  }catch(e){
-    $('#fs-err').textContent='保存失败：'+(e&&e.message||'');
-  }
-  btn.disabled=false;btn.textContent=label;
-});
 
 /* ---- 飞书授权登录（App 内，免 Secret；手动填 Secret 保留为并行路径） ---- */
 const OAUTH_REDIRECT='https://439436269-ctrl.github.io/qingji-todo-web/oauth.html';
-const OAUTH_SCOPES='bitable:app:readonly bitable:app base:record:retrieve base:record:read base:record:write';
+const OAUTH_SCOPES='offline_access bitable:app:readonly bitable:app base:record:retrieve base:record:read base:record:create base:record:update';
 function startFeishuAuth(){
   const appId=($('#fs-appid').value.trim())||window.__savedAppId||'';
-  if(!appId||!appId.startsWith('cli_')){$('#fs-err').textContent='请先填入 App ID（授权只需 App ID，无需 Secret）';return}
+  if(!appId||!appId.startsWith('cli_')){$('#fs-err').textContent='请先填入 App ID（创建应用后获得）';return}
   if(typeof NativeBridge==='undefined'||!NativeBridge.openUrl){$('#fs-err').textContent='仅 App 内支持授权登录';return}
+  const secret=$('#fs-appsecret').value.trim();
+  NativeBridge.feishuCreds(appId,secret); // 授权即保存凭据，免去单独的保存步骤；Secret 用于登录态自动续期
+  window.__savedAppId=appId;$('#fs-appid').value=appId;
+  let pk={verifier:'',challenge:''};
+  try{if(NativeBridge.pkcePair){pk=JSON.parse(NativeBridge.pkcePair())||pk;if(pk.verifier)localStorage.setItem('qingji.pkce',pk.verifier)}}catch(e){}
   const url='https://accounts.feishu.cn/open-apis/authen/v1/authorize?client_id='+appId
     +'&redirect_uri='+encodeURIComponent(OAUTH_REDIRECT)
     +'&response_type=code&state=qingji'
+    +(pk.challenge?'&code_challenge='+encodeURIComponent(pk.challenge)+'&code_challenge_method=S256':'')
     +'&scope='+encodeURIComponent(OAUTH_SCOPES);
   NativeBridge.openUrl(url);
 }
 window.__feishuOAuth=function(code){
   try{
-    const r=JSON.parse(NativeBridge.oauthExchange(code));
+    const v=localStorage.getItem('qingji.pkce')||'';
+    const r=JSON.parse(NativeBridge.oauthExchange(code,v));
+    localStorage.removeItem('qingji.pkce');
     if(!r.ok){toast('授权失败：'+(r.error||'未知错误'));return}
     toast('飞书授权成功');
     if(!FS.on){openFs();}else{doSync();}
   }catch(e){toast('授权失败：'+(e&&e.message||''))}
 };
-$('#fs-auth').addEventListener('click',startFeishuAuth);
+// 系统分享进来：其他 App 分享的文本存为任务（入口在壳层 ACTION_SEND）
+window.__shareIn=function(text){
+  try{
+    if(!text)return;
+    const title=String(text).replace(/\s+/g,' ').trim().slice(0,200);
+    if(!title)return;
+    tab='all';
+    const nt=newTask({title:title});
+    state.tasks.unshift(nt);touch(nt);save();render();markDirty('task',nt.id);
+    toast('已存为任务');
+  }catch(e){}
+};
+// 提醒通知点击：直达被提醒任务的编辑面板
+window.__remindOpen=function(id){
+  try{
+    const t=state.tasks.find(x=>x.id===id);
+    if(!t)return;
+    if(tab==='done')tab='all';
+    render();
+    openSheet(id);
+  }catch(e){}
+};
+(function(){
+  const fa=document.getElementById('fs-auth'),gt=document.getElementById('fs-guide-toggle'),
+        ru=document.getElementById('fs-redirect-url'),cu=document.getElementById('fs-copy-url'),
+        sl=document.getElementById('fs-scope-list'),cs=document.getElementById('fs-copy-scope'),g=document.getElementById('fs-guide');
+  if(fa)fa.addEventListener('click',startFeishuAuth);
+  if(gt)gt.addEventListener('click',()=>{
+    if(!g)return;g.hidden=!g.hidden;
+    gt.textContent='📋 授权配置指引（后台配一次即可）'+(g.hidden?'▾':'▴');
+  });
+  if(ru)ru.textContent=OAUTH_REDIRECT;
+  if(sl)sl.textContent=OAUTH_SCOPES;
+  function copyText(txt,ok){
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(txt).then(ok).catch(function(){fallbackCopy(txt,ok)});
+    }else fallbackCopy(txt,ok);
+  }
+  if(cu)cu.addEventListener('click',function(){copyText(OAUTH_REDIRECT,function(){toast('地址已复制，去开放平台粘贴')})});
+  if(cs)cs.addEventListener('click',function(){copyText(OAUTH_SCOPES,function(){toast('权限列表已复制，去权限管理申请')})});
+})();
+function fallbackCopy(txt,done){
+  const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');done()}catch(e){toast('复制失败，请长按上方文字复制')}
+  document.body.removeChild(ta);
+}
 
 state=load();
 loadAuth();
